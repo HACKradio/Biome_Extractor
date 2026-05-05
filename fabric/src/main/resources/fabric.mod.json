@@ -12,7 +12,7 @@
     "environment": "*",
     "entrypoints": {
         "main": [
-            "hackradio.biomeextractor.BiomeExtractor"
+            "hackradio.biomeextractor.fabric.BiomeExtractorFabric"
         ]
     },
     "depends": {
