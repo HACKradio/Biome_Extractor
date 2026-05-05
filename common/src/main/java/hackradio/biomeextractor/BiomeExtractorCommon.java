@@ -1,5 +1,8 @@
 package hackradio.biomeextractor;
 
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentType;
@@ -121,5 +124,14 @@ public class BiomeExtractorCommon {
             }
         }
         return InteractionResult.PASS;
+    }
+    // --- STEP 3: THE TOOLTIP (Client visual) ---
+    public static void appendBiomeTooltip(ItemStack stack, List<Component> tooltipLines) {
+        if (stack.has(STORED_BIOME.get())) {
+            String biomeId = stack.get(STORED_BIOME.get());
+
+            // Adds a blue text line to the item's hover display
+            tooltipLines.add(Component.translatable("tooltip.biomeextractor.stored", biomeId).withStyle(ChatFormatting.AQUA));
+        }
     }
 }

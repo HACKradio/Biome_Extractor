@@ -1,3 +1,4 @@
 {
-  "enchantment.biomeextractor.biome_extractor": "Biome Extractor"
+  "enchantment.biomeextractor.biome_extractor": "Biome Extractor",
+  "tooltip.biomeextractor.stored": "Stored Biome: %s"
 }

@@ -13,6 +13,9 @@
     "entrypoints": {
         "main": [
             "hackradio.biomeextractor.fabric.BiomeExtractorFabric"
+        ],
+        "client": [
+            "hackradio.biomeextractor.fabric.BiomeExtractorClientFabric"
         ]
     },
     "depends": {
