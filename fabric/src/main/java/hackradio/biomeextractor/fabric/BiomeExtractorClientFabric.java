@@ -16,9 +16,7 @@ public class BiomeExtractorClientFabric implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         // 1. Tooltips
-        ItemTooltipCallback.EVENT.register((stack, context, type, lines) -> {
-            BiomeExtractorCommon.appendBiomeTooltip(stack, lines);
-        });
+        ItemTooltipCallback.EVENT.register((stack, _, _, lines) -> BiomeExtractorCommon.appendBiomeTooltip(stack, lines));
 
         // 2. Register the Keybind (Default: B)
         KeyMapping gridKeybind = KeyMappingHelper.registerKeyMapping(new KeyMapping(
@@ -29,7 +27,7 @@ public class BiomeExtractorClientFabric implements ClientModInitializer {
         ));
 
         // 3. Listen for Key Presses
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(_ -> {
             while (gridKeybind.consumeClick()) {
                 BiomeExtractorCommon.showBiomeGrid = !BiomeExtractorCommon.showBiomeGrid;
             }
