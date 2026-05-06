@@ -34,7 +34,7 @@ import net.minecraft.world.level.chunk.PalettedContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.BitSet;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 public class BiomeExtractorCommon {
@@ -99,6 +99,7 @@ public class BiomeExtractorCommon {
     }
 
     // --- STEP 2: THE TRANSPLANT (Placing the block) ---
+    @SuppressWarnings("SameReturnValue")
     public static InteractionResult handleBlockPlace(Player player, Level level, InteractionHand hand, BlockPos placedPos) {
         if (level.isClientSide()) return InteractionResult.PASS;
 
@@ -109,6 +110,7 @@ public class BiomeExtractorCommon {
 
             // 26.1 Mapping: lookupOrThrow
             var biomeRegistry = level.registryAccess().lookupOrThrow(Registries.BIOME);
+            assert biomeId != null;
             var newBiomeKey = ResourceKey.create(Registries.BIOME, Identifier.parse(biomeId));
             var newBiomeHolder = biomeRegistry.get(newBiomeKey); // get() instead of getHolder()
 
@@ -116,7 +118,6 @@ public class BiomeExtractorCommon {
                 LevelChunk chunk = level.getChunkAt(placedPos);
                 LevelChunkSection section = chunk.getSections()[chunk.getSectionIndex(placedPos.getY())];
 
-                @SuppressWarnings("unchecked")
                 PalettedContainer<Holder<Biome>> biomes = (PalettedContainer<Holder<Biome>>) section.getBiomes();
 
                 int sectionX = (placedPos.getX() >> 2) & 3;
@@ -128,7 +129,7 @@ public class BiomeExtractorCommon {
 
                 if (level instanceof ServerLevel serverLevel) {
                     serverLevel.players().forEach(p -> p.connection.send(
-                            new ClientboundLevelChunkWithLightPacket(chunk, level.getLightEngine(), (BitSet) null, (BitSet) null)
+                            new ClientboundLevelChunkWithLightPacket(chunk, level.getLightEngine(), null, null)
                     ));
                 }
             }
@@ -142,7 +143,7 @@ public class BiomeExtractorCommon {
             String biomeId = stack.get(STORED_BIOME.get());
 
             // Adds a blue text line to the item's hover display
-            tooltipLines.add(Component.translatable("tooltip.biomeextractor.stored", biomeId).withStyle(ChatFormatting.AQUA));
+            tooltipLines.add(Component.translatable("tooltip.biomeextractor.stored", Objects.requireNonNull(biomeId)).withStyle(ChatFormatting.GREEN));
         }
     }
 
@@ -179,10 +180,10 @@ public class BiomeExtractorCommon {
                     // Check if this specific box in the loop is the one the player is standing in (offset 0,0,0)
                     boolean isCenterBox = (x == 0 && y == 0 && z == 0);
 
-                    // Center box is full Neon Aqua (FF). Outer boxes are half-transparent (88).
+                    // The center box is full Neon Aqua (FF). Outer boxes are half-transparent (88).
                     int boxColor = isCenterBox ? (int) 0xFF00FFFFL : (int) 0x8800FFFFL;
 
-                    // Center box has bold lines (3.0F). Outer boxes are thin (1.0F).
+                    // The center box has bold lines (3.0F). Outer boxes are thin (1.0F).
                     float boxThickness = isCenterBox ? 3.0F : 1.0F;
 
                     // Draw the 4x4x4 box with our custom style
