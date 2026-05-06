@@ -7,7 +7,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
-import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
 
 // The @Mod annotation tells NeoForge this is the entrypoint
 @Mod(BiomeExtractorCommon.MOD_ID)
@@ -26,7 +26,7 @@ public class BiomeExtractorNeoForge {
         NeoForge.EVENT_BUS.addListener(this::onRightClickBlock);
     }
 
-    private void onBlockBreak(BlockEvent.BreakEvent event) {
+    private void onBlockBreak(BreakBlockEvent event) {
         // Route NeoForge's event into our Common method
         boolean shouldContinueNormalDrop = BiomeExtractorCommon.handleBlockBreak(
                 (Level) event.getLevel(),
