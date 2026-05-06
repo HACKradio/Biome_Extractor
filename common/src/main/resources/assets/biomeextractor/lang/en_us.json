@@ -1,4 +1,6 @@
 {
   "enchantment.biomeextractor.biome_extractor": "Biome Extractor",
-  "tooltip.biomeextractor.stored": "Stored Biome: %s"
+  "tooltip.biomeextractor.stored": "Stored Biome: %s",
+  "key.biomeextractor.toggle_grid": "Toggle Biome Grid",
+  "category.biomeextractor.keys": "Biome Extractor Keys"
 }

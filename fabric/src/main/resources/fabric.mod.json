@@ -7,7 +7,7 @@
     "authors": [
         "${mod_author}"
     ],
-    "license": "${license}",
+    "license": "MIT",
     "icon": "${mod_id}.png",
     "environment": "*",
     "entrypoints": {
@@ -19,9 +19,9 @@
         ]
     },
     "depends": {
-        "fabricloader": ">=${fabric_loader_version}",
+        "fabricloader": ">=...",
         "fabric-api": "*",
-        "minecraft": "~${minecraft_version}",
+        "minecraft": ">=26.1.0 <26.2.0",
         "java": ">=${java_version}"
     }
 }
