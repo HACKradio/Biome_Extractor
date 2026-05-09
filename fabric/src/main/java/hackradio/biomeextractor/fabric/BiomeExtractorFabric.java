@@ -13,7 +13,10 @@ public class BiomeExtractorFabric implements ModInitializer {
         BiomeExtractorCommon.init(new FabricRegistryHelper(BiomeExtractorCommon.MOD_ID));
 
         // 2. Wire up the Harvest Event
-        PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, _) -> {
+        PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) -> {
+            // Your existing code stays exactly the same here!
+            // We just ignore the 'blockEntity' variable since we don't need it.
+
             // Route Fabric's event directly into our Common method
             return BiomeExtractorCommon.handleBlockBreak(level, player, pos, state);
         });

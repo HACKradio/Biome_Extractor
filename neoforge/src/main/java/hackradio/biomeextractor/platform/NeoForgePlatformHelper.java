@@ -2,7 +2,6 @@ package hackradio.biomeextractor.platform;
 
 import hackradio.biomeextractor.platform.services.IPlatformHelper;
 import net.neoforged.fml.ModList;
-import net.neoforged.fml.loading.FMLLoader;
 
 public class NeoForgePlatformHelper implements IPlatformHelper {
 
@@ -20,7 +19,7 @@ public class NeoForgePlatformHelper implements IPlatformHelper {
 
     @Override
     public boolean isDevelopmentEnvironment() {
-
-        return !FMLLoader.getCurrent().isProduction();
+        // 1.21.1 uses a direct static call!
+        return !net.neoforged.fml.loading.FMLLoader.isProduction();
     }
 }

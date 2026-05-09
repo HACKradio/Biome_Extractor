@@ -1,11 +1,13 @@
 package hackradio.biomeextractor;
 
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.client.renderer.ShapeRenderer;
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.resources.ResourceLocation;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.util.Mth;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
@@ -15,7 +17,6 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
@@ -66,7 +67,7 @@ public class BiomeExtractorCommon {
         // 26.1 Mapping: Identifier instead of ResourceLocation
         ResourceKey<Enchantment> extractorKey = ResourceKey.create(
                 Registries.ENCHANTMENT,
-                Identifier.fromNamespaceAndPath(MOD_ID, "biome_extractor")
+                ResourceLocation.fromNamespaceAndPath(MOD_ID, "biome_extractor")
         );
 
         // 26.1 Mapping: registryAccess().lookupOrThrow() instead of registryOrThrow()
@@ -81,7 +82,7 @@ public class BiomeExtractorCommon {
 
                 // 26.1 Mapping: .unwrapKey().map(key -> key.location().toString()) might now just be .unwrapKey().get().location().toString() or require the Identifier cast.
                 String biomeId = biomeHolder.unwrapKey()
-                        .map(key -> key.identifier().toString())
+                        .map(key -> key.location().toString())
                         .orElse("minecraft:plains");
 
                 ItemStack droppedBlock = new ItemStack(state.getBlock());
@@ -111,7 +112,7 @@ public class BiomeExtractorCommon {
             // 26.1 Mapping: lookupOrThrow
             var biomeRegistry = level.registryAccess().lookupOrThrow(Registries.BIOME);
             assert biomeId != null;
-            var newBiomeKey = ResourceKey.create(Registries.BIOME, Identifier.parse(biomeId));
+            var newBiomeKey = ResourceKey.create(Registries.BIOME, ResourceLocation.parse(biomeId));
             var newBiomeHolder = biomeRegistry.get(newBiomeKey); // get() instead of getHolder()
 
             if (newBiomeHolder.isPresent()) {
@@ -151,7 +152,7 @@ public class BiomeExtractorCommon {
     public static void renderBiomeGrid(PoseStack poseStack, Camera camera, VertexConsumer buffer) {
         if (!showBiomeGrid) return;
 
-        Vec3 camPos = camera.position();
+        Vec3 camPos = camera.getPosition();
 
         // Calculate the absolute world coordinates of the center 4x4x4 biome block
         int baseBiomeX = (Mth.floor(camPos.x) >> 2) << 2;
@@ -186,14 +187,21 @@ public class BiomeExtractorCommon {
                     // The center box has bold lines (3.0F). Outer boxes are thin (1.0F).
                     float boxThickness = isCenterBox ? 3.0F : 1.0F;
 
-                    // Draw the 4x4x4 box with our custom style
-                    ShapeRenderer.renderShape(
+                    // 1. Set the line thickness (if supported by your current RenderType)
+                    RenderSystem.lineWidth(boxThickness);
+
+                    // 2. Break your color down into RGBA floats
+                    float a = ((boxColor >> 24) & 0xFF) / 255.0F;
+                    float r = ((boxColor >> 16) & 0xFF) / 255.0F;
+                    float g = ((boxColor >> 8) & 0xFF) / 255.0F;
+                    float b = (boxColor & 0xFF) / 255.0F;
+
+                    // 3. Draw the 4x4x4 box using renderLineBox and an AABB
+                    LevelRenderer.renderLineBox(
                             poseStack,
                             buffer,
-                            Shapes.create(0.0, 0.0, 0.0, 4.0, 4.0, 4.0),
-                            0.0, 0.0, 0.0,
-                            boxColor,
-                            boxThickness
+                            new AABB(0.0, 0.0, 0.0, 4.0, 4.0, 4.0), // The Box Shape
+                            r, g, b, a  // RGBA Floats
                     );
 
                     poseStack.popPose(); // Put the tripod back for the next loop!

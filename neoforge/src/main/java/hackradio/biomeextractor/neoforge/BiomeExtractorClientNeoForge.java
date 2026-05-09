@@ -1,27 +1,26 @@
 package hackradio.biomeextractor.neoforge;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import hackradio.biomeextractor.BiomeExtractorCommon;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
-import org.lwjgl.glfw.GLFW;
 
-// Notice: No 'bus =' parameter! NeoForge handles it automatically now.
-@EventBusSubscriber(modid = BiomeExtractorCommon.MOD_ID, value = Dist.CLIENT)
+// This controls the main class. It defaults to the Game Bus (for live events like rendering)
+@EventBusSubscriber(modid = "biomeextractor", value = net.neoforged.api.distmarker.Dist.CLIENT)
 public class BiomeExtractorClientNeoForge {
 
-    // Define the Keybind (Using the modern constructor we learned from Fabric)
+    // Define the Keybind
     public static final KeyMapping GRID_KEYBIND = new KeyMapping(
             "key.biomeextractor.toggle_grid",
-            com.mojang.blaze3d.platform.InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_B,
-            KeyMapping.Category.MISC
+            InputConstants.Type.KEYSYM,
+            org.lwjgl.glfw.GLFW.GLFW_KEY_B,
+            "key.categories.misc"
     );
 
     // 1. Tooltips
@@ -38,20 +37,36 @@ public class BiomeExtractorClientNeoForge {
         }
     }
 
-    // 3. Inject into the 3D Render Pipeline (Using the Sub-Event from your screenshot!)
+    // 3. Inject into the 3D Render Pipeline
     @SubscribeEvent
-    public static void onRenderLevel(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void onRenderLevel(RenderLevelStageEvent event) {
 
-        var buffer = Minecraft.getInstance().renderBuffers().bufferSource().getBuffer(net.minecraft.client.renderer.rendertype.RenderTypes.LINES);
-        var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        var matrix = event.getPoseStack();
+        // We must manually check if we are in the correct rendering stage
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
 
-        BiomeExtractorCommon.renderBiomeGrid(matrix, camera, buffer);
+            // Use the singular RenderType class and lowercase lines() method
+            var buffer = Minecraft.getInstance().renderBuffers().bufferSource().getBuffer(net.minecraft.client.renderer.RenderType.lines());
+
+            // 1.21.1's RenderLevelStageEvent provides the camera natively!
+            var camera = event.getCamera();
+            var matrix = event.getPoseStack();
+
+            BiomeExtractorCommon.renderBiomeGrid(matrix, camera, buffer);
+        }
     }
 
-    // 4. Register Keybinds (Moved into the main class because of the auto-router!)
-    @SubscribeEvent
-    public static void onRegisterKeyBinds(RegisterKeyMappingsEvent event) {
-        event.register(GRID_KEYBIND);
+    // ==========================================
+    // THE MOD BUS (Setup Events)
+    // ==========================================
+    // By adding "bus = EventBusSubscriber.Bus.MOD", we tell NeoForge this is only for startup!
+    @EventBusSubscriber(modid = "biomeextractor", value = net.neoforged.api.distmarker.Dist.CLIENT, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.MOD)
+    public static class ClientModEvents {
+
+        @SubscribeEvent
+        public static void onRegisterKeyBinds(RegisterKeyMappingsEvent event) {
+            // Register the keybind on the correct bus!
+            event.register(GRID_KEYBIND);
+        }
+
     }
 }

@@ -2,12 +2,11 @@ package hackradio.biomeextractor.neoforge;
 
 import hackradio.biomeextractor.BiomeExtractorCommon;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
-import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
+import net.neoforged.neoforge.event.level.BlockEvent;
 
 // The @Mod annotation tells NeoForge this is the entrypoint
 @Mod(BiomeExtractorCommon.MOD_ID)
@@ -26,10 +25,10 @@ public class BiomeExtractorNeoForge {
         NeoForge.EVENT_BUS.addListener(this::onRightClickBlock);
     }
 
-    private void onBlockBreak(BreakBlockEvent event) {
+    private void onBlockBreak(BlockEvent.BreakEvent event) {
         // Route NeoForge's event into our Common method
         boolean shouldContinueNormalDrop = BiomeExtractorCommon.handleBlockBreak(
-                (Level) event.getLevel(),
+                (net.minecraft.world.level.Level) event.getLevel(),
                 event.getPlayer(),
                 event.getPos(),
                 event.getState()

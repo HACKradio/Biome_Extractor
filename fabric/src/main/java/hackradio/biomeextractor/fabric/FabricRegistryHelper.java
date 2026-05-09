@@ -5,7 +5,7 @@ import com.mojang.serialization.Codec;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.function.Supplier;
 
@@ -21,7 +21,7 @@ public class FabricRegistryHelper implements IRegistryHelper {
         // Registers the data component using Fabric's native system and the modern Identifier mapping
         DataComponentType<String> component = Registry.register(
                 BuiltInRegistries.DATA_COMPONENT_TYPE,
-                Identifier.fromNamespaceAndPath(modId, name),
+                ResourceLocation.fromNamespaceAndPath(modId, name),
                 DataComponentType.<String>builder().persistent(Codec.STRING).build()
         );
 
