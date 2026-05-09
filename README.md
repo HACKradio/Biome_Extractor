@@ -25,8 +25,6 @@ Toggle Matrix Grid: Press B (Default)
 
 ⚙️ Installation
 
-Biome Extractor is fully cross-platform compatible and supports Minecraft 26.1.x (Including hotfixes like 26.1.1 and 26.1.2).
-
 For Fabric Players:
 
 Install the Fabric Loader.
