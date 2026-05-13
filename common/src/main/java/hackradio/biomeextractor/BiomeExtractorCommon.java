@@ -14,7 +14,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -107,40 +106,56 @@ public class BiomeExtractorCommon {
         return true;
     }
 
-    // --- STEP 2: THE TRANSPLANT (Placing the block) ---
+    // --- STEP 2: THE TRANSPLANT (Placing the block) [26.1 Modern Mappings] ---
     @SuppressWarnings("SameReturnValue")
     public static InteractionResult handleBlockPlace(Player player, Level level, InteractionHand hand, BlockPos placedPos) {
         if (level.isClientSide()) return InteractionResult.PASS;
 
         ItemStack itemInHand = player.getItemInHand(hand);
 
+        // 26.1 Mapping: Checking the modern Data Component
         if (itemInHand.has(STORED_BIOME.get())) {
             String biomeId = itemInHand.get(STORED_BIOME.get());
 
-            // 26.1 Mapping: lookupOrThrow
+            // 26.1 Mapping: Modern Registry lookup
             var biomeRegistry = level.registryAccess().lookupOrThrow(Registries.BIOME);
             assert biomeId != null;
+
+            // 1. Make sure to import net.minecraft.resources.ResourceLocation; at the top of the file!
+
+            // 26.1 Mapping: Identifier.parse()
             var newBiomeKey = ResourceKey.create(Registries.BIOME, Identifier.parse(biomeId));
-            var newBiomeHolder = biomeRegistry.get(newBiomeKey); // get() instead of getHolder()
+
+            // This gives us the Optional<Holder<Biome>> that the chunk array requires.
+            var newBiomeHolder = biomeRegistry.get(newBiomeKey);
 
             if (newBiomeHolder.isPresent()) {
                 LevelChunk chunk = level.getChunkAt(placedPos);
                 LevelChunkSection section = chunk.getSections()[chunk.getSectionIndex(placedPos.getY())];
 
+                // Suppress the warning for the unchecked cast
                 PalettedContainer<Holder<Biome>> biomes = (PalettedContainer<Holder<Biome>>) section.getBiomes();
 
                 int sectionX = (placedPos.getX() >> 2) & 3;
                 int sectionY = (placedPos.getY() >> 2) & 3;
                 int sectionZ = (placedPos.getZ() >> 2) & 3;
 
+                // Because we used .getHolder() above, .get() here now correctly unwraps it!
                 biomes.set(sectionX, sectionY, sectionZ, newBiomeHolder.get());
-                chunk.setLoaded(true);
 
+                // THE FIX: Modern Mojang mapping for marking a chunk to be saved to the hard drive
+                chunk.markUnsaved();
+
+                // --- THE MODERN NETWORK PACKET FIX ---
                 if (level instanceof ServerLevel serverLevel) {
-                    serverLevel.players().forEach(p -> p.connection.send(
-                            new ClientboundLevelChunkWithLightPacket(chunk, level.getLightEngine(), null, null)
-                    ));
+                    // 1. Create the lightweight biome-only packet
+                    net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket biomePacket =
+                            net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket.forChunks(java.util.List.of(chunk));
+
+                    // 2. Broadcast ONLY to players actually standing near the chunk
+                    serverLevel.getChunkSource().chunkMap.getPlayers(chunk.getPos(), false).forEach(serverPlayer -> serverPlayer.connection.send(biomePacket));
                 }
+                // -------------------------------------
             }
         }
         return InteractionResult.PASS;
