@@ -2,6 +2,7 @@ package hackradio.biomeextractor;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket;
 import net.minecraft.resources.ResourceLocation;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -16,7 +17,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
@@ -131,6 +131,7 @@ public class BiomeExtractorCommon {
                 LevelChunk chunk = level.getChunkAt(placedPos);
                 LevelChunkSection section = chunk.getSections()[chunk.getSectionIndex(placedPos.getY())];
 
+                // Suppress the warning for the unchecked cast, as we know the structure of PalettedContainer
                 PalettedContainer<Holder<Biome>> biomes = (PalettedContainer<Holder<Biome>>) section.getBiomes();
 
                 int sectionX = (placedPos.getX() >> 2) & 3;
@@ -138,12 +139,19 @@ public class BiomeExtractorCommon {
                 int sectionZ = (placedPos.getZ() >> 2) & 3;
 
                 biomes.set(sectionX, sectionY, sectionZ, newBiomeHolder.get());
-                chunk.setLoaded(true);
 
+                // Marks the chunk as "dirty" so the server saves the new biome to the world save file
+                chunk.setUnsaved(true);
+
+                // --- THE NEW, OPTIMIZED NETWORK PACKET ---
                 if (level instanceof ServerLevel serverLevel) {
-                    serverLevel.players().forEach(p -> p.connection.send(
-                            new ClientboundLevelChunkWithLightPacket(chunk, level.getLightEngine(), null, null)
-                    ));
+                    // 1. Create the lightweight biome-only packet
+                    // Notice we dropped the "new" keyword and added ".forChunks"
+                    ClientboundChunksBiomesPacket biomePacket =
+                            ClientboundChunksBiomesPacket.forChunks(java.util.List.of(chunk));
+
+                    // 2. Broadcast ONLY to players actually standing near the chunk
+                    serverLevel.getChunkSource().chunkMap.getPlayers(chunk.getPos(), false).forEach(serverPlayer -> serverPlayer.connection.send(biomePacket));
                 }
             }
         }

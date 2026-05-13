@@ -8,7 +8,7 @@
         "${mod_author}"
     ],
     "license": "MIT",
-    "icon": "${mod_id}.png",
+    "icon": "icon.png",
     "environment": "*",
     "entrypoints": {
         "main": [
