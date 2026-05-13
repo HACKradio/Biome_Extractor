@@ -93,6 +93,18 @@ public class BiomeExtractorCommon {
                 Block.popResource(level, pos, droppedBlock);
                 level.destroyBlock(pos, false);
 
+                // --- THE DURABILITY FIX GOES RIGHT HERE ---
+                if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+                    heldItem.hurtAndBreak(
+                            1,
+                            (net.minecraft.server.level.ServerLevel) level,
+                            serverPlayer,
+                            // The lambda 'item' parameter is now passed into the new method
+                            item -> serverPlayer.onEquippedItemBroken(item, net.minecraft.world.entity.EquipmentSlot.MAINHAND)
+                    );
+                }
+                // ------------------------------------------
+
                 return false;
             }
         }
