@@ -33,7 +33,6 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -91,6 +90,16 @@ public class BiomeExtractorCommon {
                 // 26.1 Mapping: popResource is often changed to Block.dropResources or similar, but the most stable native method is directly spawning the entity.
                 Block.popResource(level, pos, droppedBlock);
                 level.destroyBlock(pos, false);
+
+                // Modern NeoForge Durability Fix
+                if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+                    heldItem.hurtAndBreak(
+                            1,
+                            (net.minecraft.server.level.ServerLevel) level,
+                            serverPlayer,
+                            item -> serverPlayer.onEquippedItemBroken(item, net.minecraft.world.entity.EquipmentSlot.MAINHAND)
+                    );
+                }
 
                 return false;
             }
