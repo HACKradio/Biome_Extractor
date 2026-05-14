@@ -1,5 +1,6 @@
 package hackradio.biomeextractor;
 
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.client.renderer.ShapeRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -55,6 +56,7 @@ public class BiomeExtractorCommon {
     public static boolean showBiomeGrid = false;
 
     // --- STEP 1: THE HARVEST (Breaking the block) ---
+    @SuppressWarnings("SameReturnValue")
     public static boolean handleBlockBreak(Level level, Player player, BlockPos pos, BlockState state) {
         if (level.isClientSide()) return true;
 
@@ -83,24 +85,15 @@ public class BiomeExtractorCommon {
                         .orElse("minecraft:plains");
 
                 ItemStack droppedBlock = new ItemStack(state.getBlock());
-
                 droppedBlock.set(STORED_BIOME.get(), biomeId);
 
-                // 26.1 Mapping: popResource is often changed to Block.dropResources or similar, but the most stable native method is directly spawning the entity.
+                // Pop our custom biome block into the world
                 Block.popResource(level, pos, droppedBlock);
-                level.destroyBlock(pos, false);
 
-                // Modern NeoForge Durability Fix
-                if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
-                    heldItem.hurtAndBreak(
-                            1,
-                            (net.minecraft.server.level.ServerLevel) level,
-                            serverPlayer,
-                            item -> serverPlayer.onEquippedItemBroken(item, net.minecraft.world.entity.EquipmentSlot.MAINHAND)
-                    );
-                }
+                // THE FIX: The Ghost Break (Silently turn block to Air to bypass vanilla drops)
+                level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
 
-                return false;
+                return true;
             }
         }
         return true;
