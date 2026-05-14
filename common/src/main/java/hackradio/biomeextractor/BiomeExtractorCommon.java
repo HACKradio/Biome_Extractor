@@ -8,6 +8,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.network.chat.Component;
@@ -58,6 +59,7 @@ public class BiomeExtractorCommon {
     public static boolean showBiomeGrid = false;
 
     // --- STEP 1: THE HARVEST (Breaking the block) ---
+    @SuppressWarnings("SameReturnValue")
     public static boolean handleBlockBreak(Level level, Player player, BlockPos pos, BlockState state) {
         if (level.isClientSide()) return true;
 
@@ -89,23 +91,13 @@ public class BiomeExtractorCommon {
 
                 droppedBlock.set(STORED_BIOME.get(), biomeId);
 
-                // 26.1 Mapping: popResource is often changed to Block.dropResources or similar, but the most stable native method is directly spawning the entity.
+                // Pop our custom biome block into the world
                 Block.popResource(level, pos, droppedBlock);
-                level.destroyBlock(pos, false);
 
-                // --- THE DURABILITY FIX GOES RIGHT HERE ---
-                if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
-                    heldItem.hurtAndBreak(
-                            1,
-                            (net.minecraft.server.level.ServerLevel) level,
-                            serverPlayer,
-                            // The lambda 'item' parameter is now passed into the new method
-                            item -> serverPlayer.onEquippedItemBroken(item, net.minecraft.world.entity.EquipmentSlot.MAINHAND)
-                    );
-                }
-                // ------------------------------------------
+                // The Ghost Break: Silently turn the block to air to prevent vanilla dupes
+                level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
 
-                return false;
+                return true;
             }
         }
         return true;
