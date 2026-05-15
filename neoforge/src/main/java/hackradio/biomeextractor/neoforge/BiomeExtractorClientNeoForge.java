@@ -1,5 +1,6 @@
 package hackradio.biomeextractor.neoforge;
 
+import com.mojang.blaze3d.platform.InputConstants.Type;
 import hackradio.biomeextractor.BiomeExtractorCommon;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -7,7 +8,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 import org.lwjgl.glfw.GLFW;
@@ -16,12 +16,12 @@ import org.lwjgl.glfw.GLFW;
 @EventBusSubscriber(modid = BiomeExtractorCommon.MOD_ID, value = Dist.CLIENT)
 public class BiomeExtractorClientNeoForge {
 
-    // Define the Keybind (Using the modern constructor we learned from Fabric)
-    public static final KeyMapping GRID_KEYBIND = new KeyMapping(
+    // The B Key (Also using the new modern constructor)
+    public static final KeyMapping TOGGLE_GRID_KEY = new KeyMapping(
             "key.biomeextractor.toggle_grid",
-            com.mojang.blaze3d.platform.InputConstants.Type.KEYSYM,
+            Type.KEYSYM,
             GLFW.GLFW_KEY_B,
-            KeyMapping.Category.MISC
+            NeoForgeClientSetup.CUSTOM_CATEGORY // THE FIX: Grab the shared object from the other file!
     );
 
     // 1. Tooltips
@@ -33,7 +33,7 @@ public class BiomeExtractorClientNeoForge {
     // 2. Listen for Key Presses
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
-        while (GRID_KEYBIND.consumeClick()) {
+        while (TOGGLE_GRID_KEY.consumeClick()) {
             BiomeExtractorCommon.showBiomeGrid = !BiomeExtractorCommon.showBiomeGrid;
         }
     }
@@ -47,11 +47,5 @@ public class BiomeExtractorClientNeoForge {
         var matrix = event.getPoseStack();
 
         BiomeExtractorCommon.renderBiomeGrid(matrix, camera, buffer);
-    }
-
-    // 4. Register Keybinds (Moved into the main class because of the auto-router!)
-    @SubscribeEvent
-    public static void onRegisterKeyBinds(RegisterKeyMappingsEvent event) {
-        event.register(GRID_KEYBIND);
     }
 }

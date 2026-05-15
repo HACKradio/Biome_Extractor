@@ -1,5 +1,6 @@
 package hackradio.biomeextractor.fabric;
 
+import hackradio.biomeextractor.BiomeExtractorCommon;
 import hackradio.biomeextractor.IRegistryHelper;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.Registry;
@@ -26,5 +27,22 @@ public class FabricRegistryHelper implements IRegistryHelper {
         );
 
         return () -> component;
+    }
+    // Add this inside your Fabric RegistryHelper class
+    @Override
+    public Supplier<DataComponentType<Integer>> registerIntegerComponent(String name) {
+        var component = DataComponentType.<Integer>builder()
+                .persistent(com.mojang.serialization.Codec.INT)
+                .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT)
+                .build();
+
+        // Assuming you are registering it directly to the vanilla registry
+        var registered = Registry.register(
+                BuiltInRegistries.DATA_COMPONENT_TYPE,
+                Identifier.fromNamespaceAndPath(BiomeExtractorCommon.MOD_ID, name),
+                component
+        );
+
+        return () -> registered;
     }
 }

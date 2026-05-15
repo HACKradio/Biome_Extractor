@@ -1,5 +1,6 @@
 package hackradio.biomeextractor;
 
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.client.renderer.ShapeRenderer;
@@ -44,11 +45,15 @@ public class BiomeExtractorCommon {
     // This is a Supplier because NeoForge doesn't hand over the component immediately.
     public static Supplier<DataComponentType<String>> STORED_BIOME;
 
-    /**
-     * The Master Switch. Fabric and NeoForge will call this and pass in their specific RegistryHelper.
-     */
+    // NEW: Tracks the current size mode (0=Small, 1=Medium, 2=Large)
+    public static Supplier<DataComponentType<Integer>> EXTRACTOR_SIZE;
+
     public static void init(IRegistryHelper registryHelper) {
         STORED_BIOME = registryHelper.registerBiomeComponent("stored_biome");
+
+        // NEW: Assuming your helper has a method for integer components!
+        EXTRACTOR_SIZE = registryHelper.registerIntegerComponent("extractor_size");
+
         LOGGER.info("Biome Extractor Common Logic Initialized!");
     }
 
@@ -106,49 +111,68 @@ public class BiomeExtractorCommon {
 
         ItemStack itemInHand = player.getItemInHand(hand);
 
-        // 26.1 Mapping: Checking the modern Data Component
         if (itemInHand.has(STORED_BIOME.get())) {
             String biomeId = itemInHand.get(STORED_BIOME.get());
-
-            // 26.1 Mapping: Modern Registry lookup
             var biomeRegistry = level.registryAccess().lookupOrThrow(Registries.BIOME);
             assert biomeId != null;
 
-            // 1. Make sure to import net.minecraft.resources.ResourceLocation; at the top of the file!
-
-            // 26.1 Mapping: Identifier.parse()
             var newBiomeKey = ResourceKey.create(Registries.BIOME, Identifier.parse(biomeId));
-
-            // This gives us the Optional<Holder<Biome>> that the chunk array requires.
             var newBiomeHolder = biomeRegistry.get(newBiomeKey);
 
             if (newBiomeHolder.isPresent()) {
-                LevelChunk chunk = level.getChunkAt(placedPos);
-                LevelChunkSection section = chunk.getSections()[chunk.getSectionIndex(placedPos.getY())];
 
-                // Suppress the warning for the unchecked cast
-                PalettedContainer<Holder<Biome>> biomes = (PalettedContainer<Holder<Biome>>) section.getBiomes();
+                // 1. Determine the size mode from the item (Default to 0 / Small)
+                int mode = itemInHand.getOrDefault(EXTRACTOR_SIZE.get(), 0);
 
-                int sectionX = (placedPos.getX() >> 2) & 3;
-                int sectionY = (placedPos.getY() >> 2) & 3;
-                int sectionZ = (placedPos.getZ() >> 2) & 3;
+                // 2. Set radius's based on mode (Small: 0x0x0, Medium: 1x1x1, Large: 2x1x2)
+                int yRadius = (mode > 0) ? 1 : 0;
 
-                // Because we used .getHolder() above, .get() here now correctly unwraps it!
-                biomes.set(sectionX, sectionY, sectionZ, newBiomeHolder.get());
+                // 3. Keep track of which chunks we actually touched so we don't spam network packets
+                java.util.Set<LevelChunk> modifiedChunks = new java.util.HashSet<>();
 
-                // THE FIX: Modern Mojang mapping for marking a chunk to be saved to the hard drive
-                chunk.markUnsaved();
+                // 4. The 3D Loop!
+                for (int dx = -mode; dx <= mode; dx++) {
+                    for (int dy = -yRadius; dy <= yRadius; dy++) {
+                        for (int dz = -mode; dz <= mode; dz++) {
 
-                // --- THE MODERN NETWORK PACKET FIX ---
-                if (level instanceof ServerLevel serverLevel) {
-                    // 1. Create the lightweight biome-only packet
-                    net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket biomePacket =
-                            net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket.forChunks(java.util.List.of(chunk));
+                            // Calculate the absolute position of this specific biome section
+                            BlockPos targetPos = placedPos.offset(dx * 4, dy * 4, dz * 4);
 
-                    // 2. Broadcast ONLY to players actually standing near the chunk
-                    serverLevel.getChunkSource().chunkMap.getPlayers(chunk.getPos(), false).forEach(serverPlayer -> serverPlayer.connection.send(biomePacket));
+                            // Fetch the correct chunk for this specific position (CRITICAL for large areas)
+                            LevelChunk chunk = level.getChunkAt(targetPos);
+                            int sectionIndex = chunk.getSectionIndex(targetPos.getY());
+
+                            // Safety check: Don't try to place biomes above the world height or below bedrock!
+                            if (sectionIndex < 0 || sectionIndex >= chunk.getSections().length) {
+                                continue;
+                            }
+
+                            LevelChunkSection section = chunk.getSections()[sectionIndex];
+
+                            PalettedContainer<Holder<Biome>> biomes = (PalettedContainer<Holder<Biome>>) section.getBiomes();
+
+                            // Convert world coordinates to chunk-local section coordinates (0-3)
+                            int sectionX = (targetPos.getX() >> 2) & 3;
+                            int sectionY = (targetPos.getY() >> 2) & 3;
+                            int sectionZ = (targetPos.getZ() >> 2) & 3;
+
+                            biomes.set(sectionX, sectionY, sectionZ, newBiomeHolder.get());
+
+                            chunk.markUnsaved();
+                            modifiedChunks.add(chunk); // Add to our list to update the clients later
+                        }
+                    }
                 }
-                // -------------------------------------
+
+                // 5. Broadcast network packets ONLY for the chunks we actually touched
+                if (level instanceof ServerLevel serverLevel) {
+                    for (LevelChunk modifiedChunk : modifiedChunks) {
+                        net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket biomePacket =
+                                net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket.forChunks(java.util.List.of(modifiedChunk));
+
+                        serverLevel.getChunkSource().chunkMap.getPlayers(modifiedChunk.getPos(), false).forEach(serverPlayer -> serverPlayer.connection.send(biomePacket));
+                    }
+                }
             }
         }
         return InteractionResult.PASS;
@@ -168,54 +192,76 @@ public class BiomeExtractorCommon {
     public static void renderBiomeGrid(PoseStack poseStack, Camera camera, VertexConsumer buffer) {
         if (!showBiomeGrid) return;
 
-        Vec3 camPos = camera.position();
+        // Grab the player to check their item mode
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc.player == null) return;
 
-        // Calculate the absolute world coordinates of the center 4x4x4 biome block
+        ItemStack mainHand = mc.player.getMainHandItem();
+        int mode = mainHand.getOrDefault(EXTRACTOR_SIZE.get(), 0);
+
+        // Dynamic radius's based on the item
+        int yRadius = (mode > 0) ? 1 : 0;
+
+        Vec3 camPos = camera.position();
         int baseBiomeX = (Mth.floor(camPos.x) >> 2) << 2;
         int baseBiomeY = (Mth.floor(camPos.y) >> 2) << 2;
         int baseBiomeZ = (Mth.floor(camPos.z) >> 2) << 2;
 
-        // How many layers out do you want to draw? (1 = a 3x3x3 grid of boxes)
-        int radius = 1;
+        for (int x = -mode; x <= mode; x++) {
+            for (int y = -yRadius; y <= yRadius; y++) {
+                for (int z = -mode; z <= mode; z++) {
 
-        // Loop through the X, Y, and Z axes to draw the neighbors
-        for (int x = -radius; x <= radius; x++) {
-            for (int y = -radius; y <= radius; y++) {
-                for (int z = -radius; z <= radius; z++) {
-
-                    poseStack.pushPose(); // Save the camera's true position
-
-                    // Multiply our loop offset by 4 (the size of a biome chunk) to get the neighbor's coordinate
+                    poseStack.pushPose();
                     double targetX = baseBiomeX + (x * 4);
                     double targetY = baseBiomeY + (y * 4);
                     double targetZ = baseBiomeZ + (z * 4);
 
-                    // Shift the tripod to this specific box's corner
                     poseStack.translate(targetX - camPos.x, targetY - camPos.y, targetZ - camPos.z);
 
-                    // --- SMART UI ---
-                    // Check if this specific box in the loop is the one the player is standing in (offset 0,0,0)
                     boolean isCenterBox = (x == 0 && y == 0 && z == 0);
-
-                    // The center box is full Neon Aqua (FF). Outer boxes are half-transparent (88).
                     int boxColor = isCenterBox ? (int) 0xFF00FFFFL : (int) 0x8800FFFFL;
-
-                    // The center box has bold lines (3.0F). Outer boxes are thin (1.0F).
                     float boxThickness = isCenterBox ? 3.0F : 1.0F;
 
-                    // Draw the 4x4x4 box with our custom style
                     ShapeRenderer.renderShape(
-                            poseStack,
-                            buffer,
-                            Shapes.create(0.0, 0.0, 0.0, 4.0, 4.0, 4.0),
-                            0.0, 0.0, 0.0,
-                            boxColor,
-                            boxThickness
+                            poseStack, buffer, Shapes.create(0.0, 0.0, 0.0, 4.0, 4.0, 4.0),
+                            0.0, 0.0, 0.0, boxColor, boxThickness
                     );
-
-                    poseStack.popPose(); // Put the tripod back for the next loop!
+                    poseStack.popPose();
                 }
             }
+        }
+    }
+
+    // --- STEP 5: THE NETWORK HANDLER (Cycling the Size) ---
+    public static void handleCycleSize(ServerPlayer player) {
+        ItemStack mainHand = player.getMainHandItem();
+
+        // Check if they are actually holding the Extractor
+        if (mainHand.has(STORED_BIOME.get())) {
+
+            // Get the current mode (default to 0)
+            int currentMode = mainHand.getOrDefault(EXTRACTOR_SIZE.get(), 0);
+
+            // Math trick: Modulo 3 means it will cycle: 0 -> 1 -> 2 -> 0 -> 1...
+            int newMode = (currentMode + 1) % 3;
+
+            // Save the new mode to the item
+            mainHand.set(EXTRACTOR_SIZE.get(), newMode);
+
+            // Determine the text to show the player
+            String sizeText = switch (newMode) {
+                case 0 -> "Small (4x4x4)";
+                case 1 -> "Medium (12x12x12)";
+                case 2 -> "Large (20x20x12)";
+                default -> "Unknown";
+            };
+
+            // 26.1 Mapping: displayClientMessage is now sendSystemMessage
+            player.sendSystemMessage(
+                    Component.literal("Transplant Size: " + sizeText)
+                            .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD),
+                    true
+            );
         }
     }
 }
