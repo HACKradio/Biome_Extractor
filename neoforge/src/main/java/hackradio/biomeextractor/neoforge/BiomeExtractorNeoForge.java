@@ -1,12 +1,16 @@
 package hackradio.biomeextractor.neoforge;
 
 import hackradio.biomeextractor.BiomeExtractorCommon;
+import hackradio.biomeextractor.network.CycleSizePayload;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 // The @Mod annotation tells NeoForge this is the entrypoint
 @Mod(BiomeExtractorCommon.MOD_ID)
@@ -23,6 +27,10 @@ public class BiomeExtractorNeoForge {
         // 3. Wire up the Harvest and Transplant Events to the main Gameplay Bus
         NeoForge.EVENT_BUS.addListener(this::onBlockBreak);
         NeoForge.EVENT_BUS.addListener(this::onRightClickBlock);
+        modEventBus.addListener(this::registerPayloads);
+
+        // Inside your main NeoForge constructor:
+        NeoForgeRegistryHelper.DATA_COMPONENT_TYPES.register(modEventBus);
     }
 
     private void onBlockBreak(BlockEvent.BreakEvent event) {
@@ -59,5 +67,18 @@ public class BiomeExtractorNeoForge {
             event.setCanceled(true);
             event.setCancellationResult(result);
         }
+    }
+    private void registerPayloads(final RegisterPayloadHandlersEvent event) {
+        final PayloadRegistrar registrar = event.registrar(BiomeExtractorCommon.MOD_ID);
+
+        registrar.playToServer(
+                CycleSizePayload.TYPE,
+                CycleSizePayload.CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer serverPlayer) {
+                        BiomeExtractorCommon.handleCycleSize(serverPlayer);
+                    }
+                })
+        );
     }
 }

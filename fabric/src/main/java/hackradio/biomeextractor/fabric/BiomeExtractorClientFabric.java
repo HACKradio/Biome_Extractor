@@ -1,11 +1,14 @@
 package hackradio.biomeextractor.fabric;
 
+import com.mojang.blaze3d.platform.InputConstants.Type;
 import hackradio.biomeextractor.BiomeExtractorCommon;
 import com.mojang.blaze3d.platform.InputConstants;
+import hackradio.biomeextractor.network.CycleSizePayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.KeyMapping;
 import org.lwjgl.glfw.GLFW;
@@ -24,7 +27,7 @@ public class BiomeExtractorClientFabric implements ClientModInitializer {
                 "key.biomeextractor.toggle_grid",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_B,
-                "key.categories.misc"
+                "key.categories.biomeextractor"
         ));
 
         // 3. Listen for Key Presses
@@ -47,6 +50,24 @@ public class BiomeExtractorClientFabric implements ClientModInitializer {
             var matrix = context.matrixStack();
 
             BiomeExtractorCommon.renderBiomeGrid(matrix, camera, buffer);
+        });
+
+        // 1.21.1 Standard: Raw String for the category
+        KeyMapping cycleSizeKey = KeyBindingHelper.registerKeyBinding(
+                new KeyMapping(
+                        "key.biomeextractor.cycle_size",
+                        Type.KEYSYM,
+                        GLFW.GLFW_KEY_V,
+                        "key.categories.biomeextractor"
+                )
+        );
+
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            while (cycleSizeKey.consumeClick()) {
+                ClientPlayNetworking.send(
+                        new CycleSizePayload()
+                );
+            }
         });
     }
 }

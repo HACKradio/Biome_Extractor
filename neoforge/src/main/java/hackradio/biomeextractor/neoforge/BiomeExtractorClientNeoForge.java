@@ -1,26 +1,29 @@
 package hackradio.biomeextractor.neoforge;
 
-import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.blaze3d.platform.InputConstants.Type;
 import hackradio.biomeextractor.BiomeExtractorCommon;
+import hackradio.biomeextractor.network.CycleSizePayload;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
+import org.lwjgl.glfw.GLFW;
 
 // This controls the main class. It defaults to the Game Bus (for live events like rendering)
-@EventBusSubscriber(modid = "biomeextractor", value = net.neoforged.api.distmarker.Dist.CLIENT)
+@EventBusSubscriber(modid = "biomeextractor", value = Dist.CLIENT)
 public class BiomeExtractorClientNeoForge {
 
     // Define the Keybind
     public static final KeyMapping GRID_KEYBIND = new KeyMapping(
             "key.biomeextractor.toggle_grid",
-            InputConstants.Type.KEYSYM,
-            org.lwjgl.glfw.GLFW.GLFW_KEY_B,
-            "key.categories.misc"
+            Type.KEYSYM,
+            GLFW.GLFW_KEY_B,
+            "key.categories.biomeextractor"
     );
 
     // 1. Tooltips
@@ -35,7 +38,15 @@ public class BiomeExtractorClientNeoForge {
         while (GRID_KEYBIND.consumeClick()) {
             BiomeExtractorCommon.showBiomeGrid = !BiomeExtractorCommon.showBiomeGrid;
         }
+        // Inside your ClientTickEvent loop:
+        while (NeoForgeClientSetup.CYCLE_SIZE_KEY.consumeClick()) {
+            // 1.21.1 Standard: PacketDistributor
+            PacketDistributor.sendToServer(
+                    new CycleSizePayload()
+            );
+        }
     }
+
 
     // 3. Inject into the 3D Render Pipeline
     @SubscribeEvent
@@ -53,20 +64,5 @@ public class BiomeExtractorClientNeoForge {
 
             BiomeExtractorCommon.renderBiomeGrid(matrix, camera, buffer);
         }
-    }
-
-    // ==========================================
-    // THE MOD BUS (Setup Events)
-    // ==========================================
-    // By adding "bus = EventBusSubscriber.Bus.MOD", we tell NeoForge this is only for startup!
-    @EventBusSubscriber(modid = "biomeextractor", value = net.neoforged.api.distmarker.Dist.CLIENT, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.MOD)
-    public static class ClientModEvents {
-
-        @SubscribeEvent
-        public static void onRegisterKeyBinds(RegisterKeyMappingsEvent event) {
-            // Register the keybind on the correct bus!
-            event.register(GRID_KEYBIND);
-        }
-
     }
 }

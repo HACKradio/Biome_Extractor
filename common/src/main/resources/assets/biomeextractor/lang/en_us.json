@@ -2,5 +2,7 @@
   "enchantment.biomeextractor.biome_extractor": "Biome Extractor",
   "tooltip.biomeextractor.stored": "Stored Biome: %s",
   "key.biomeextractor.toggle_grid": "Toggle Biome Grid",
-  "category.biomeextractor.keys": "Biome Extractor Keys"
+  "category.biomeextractor.keys": "Biome Extractor Keys",
+  "key.categories.biomeextractor": "Biome Extractor",
+  "key.biomeextractor.cycle_size": "Cycle Transplant Size"
 }

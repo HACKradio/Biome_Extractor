@@ -1,9 +1,12 @@
 package hackradio.biomeextractor.fabric;
 
 import hackradio.biomeextractor.BiomeExtractorCommon;
+import hackradio.biomeextractor.network.CycleSizePayload;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 public class BiomeExtractorFabric implements ModInitializer {
 
@@ -29,5 +32,13 @@ public class BiomeExtractorFabric implements ModInitializer {
             // Route Fabric's event directly into our Common method
             return BiomeExtractorCommon.handleBlockPlace(player, level, hand, placedPos);
         });
+
+        PayloadTypeRegistry.playC2S()
+                .register(CycleSizePayload.TYPE, CycleSizePayload.CODEC);
+
+        ServerPlayNetworking.registerGlobalReceiver(
+                CycleSizePayload.TYPE,
+                (payload, context) -> BiomeExtractorCommon.handleCycleSize(context.player())
+        );
     }
 }
