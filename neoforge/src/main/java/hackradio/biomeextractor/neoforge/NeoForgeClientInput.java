@@ -1,6 +1,7 @@
 package hackradio.biomeextractor.neoforge;
 
 import hackradio.biomeextractor.BiomeExtractorCommon;
+import hackradio.biomeextractor.network.CycleSizePayload;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -19,7 +20,7 @@ public class NeoForgeClientInput {
 
             // THE FIX: Use ClientPacketDistributor to send from the client!
             ClientPacketDistributor.sendToServer(
-                    new hackradio.biomeextractor.network.CycleSizePayload()
+                    new CycleSizePayload()
             );
         }
     }
