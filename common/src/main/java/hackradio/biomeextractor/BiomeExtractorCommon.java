@@ -2,6 +2,7 @@ package hackradio.biomeextractor;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket;
 import net.minecraft.resources.ResourceLocation;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -52,6 +53,7 @@ public class BiomeExtractorCommon {
         STORED_BIOME = registryHelper.registerBiomeComponent("stored_biome");
         EXTRACTOR_SIZE = registryHelper.registerIntegerComponent("extractor_size");
         LOGGER.info("Biome Extractor Common Logic Initialized!");
+        BiomeExtractorConfig.load();
     }
 
     // The toggle switch for our visualizer
@@ -65,37 +67,79 @@ public class BiomeExtractorCommon {
         ItemStack heldItem = player.getMainHandItem();
         if (heldItem.isEmpty()) return true;
 
-        // 26.1 Mapping: Identifier instead of ResourceLocation
         ResourceKey<Enchantment> extractorKey = ResourceKey.create(
                 Registries.ENCHANTMENT,
                 ResourceLocation.fromNamespaceAndPath(MOD_ID, "biome_extractor")
         );
 
-        // 26.1 Mapping: registryAccess().lookupOrThrow() instead of registryOrThrow()
         var registry = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
-        var optionalEnchantment = registry.get(extractorKey); // get() instead of getHolder()
+        var optionalEnchantment = registry.get(extractorKey);
 
         if (optionalEnchantment.isPresent()) {
             int enchantLevel = EnchantmentHelper.getItemEnchantmentLevel(optionalEnchantment.get(), heldItem);
 
             if (enchantLevel > 0) {
-                var biomeHolder = level.getBiome(pos);
 
-                // 26.1 Mapping: .unwrapKey().map(key -> key.location().toString()) might now just be .unwrapKey().get().location().toString() or require the Identifier cast.
+                // --- CONFIG CHECK 1: The Smart Whitelist (Tags + Blocks) ---
+                if (BiomeExtractorConfig.INSTANCE.useWhitelist) {
+                    boolean isAllowed = false;
+                    for (String entry : BiomeExtractorConfig.INSTANCE.allowedBlocks) {
+                        if (entry.startsWith("#")) {
+                            // It is a Tag! (e.g., #minecraft:dirt)
+                            var tagKey = net.minecraft.tags.TagKey.create(
+                                    Registries.BLOCK,
+                                    ResourceLocation.parse(entry.substring(1)) // Remove the '#' to parse
+                            );
+                            if (state.is(tagKey)) {
+                                isAllowed = true;
+                                break;
+                            }
+                        } else {
+                            // It is a specific block! (e.g., minecraft:gravel)
+                            String blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
+                            if (blockId.equals(entry)) {
+                                isAllowed = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!isAllowed) {
+                        return true; // Not in whitelist! Drop standard vanilla block.
+                    }
+                }
+
+                // --- CONFIG CHECK 2: Proper Tool Check ---
+                if (BiomeExtractorConfig.INSTANCE.requireCorrectTool) {
+                    boolean isRightTool = false;
+
+                    if (state.is(net.minecraft.tags.BlockTags.MINEABLE_WITH_PICKAXE) && heldItem.is(net.minecraft.tags.ItemTags.PICKAXES)) isRightTool = true;
+                    else if (state.is(net.minecraft.tags.BlockTags.MINEABLE_WITH_SHOVEL) && heldItem.is(net.minecraft.tags.ItemTags.SHOVELS)) isRightTool = true;
+                    else if (state.is(net.minecraft.tags.BlockTags.MINEABLE_WITH_AXE) && heldItem.is(net.minecraft.tags.ItemTags.AXES)) isRightTool = true;
+                    else if (state.is(net.minecraft.tags.BlockTags.MINEABLE_WITH_HOE) && heldItem.is(net.minecraft.tags.ItemTags.HOES)) isRightTool = true;
+
+                    // Some blocks (like gravel/dirt) don't strictly *require* a tool to drop,
+                    // but if the config is true, we force them to use the matching tool!
+                    if (!isRightTool) {
+                        return true;
+                    }
+                }
+
+                // --- ORIGINAL SUCCESS LOGIC ---
+                var biomeHolder = level.getBiome(pos);
                 String biomeId = biomeHolder.unwrapKey()
                         .map(key -> key.location().toString())
                         .orElse("minecraft:plains");
 
                 ItemStack droppedBlock = new ItemStack(state.getBlock());
-
                 droppedBlock.set(STORED_BIOME.get(), biomeId);
 
-                // Pop our custom biome block into the world
                 Block.popResource(level, pos, droppedBlock);
 
-                // The Ghost Break: Silently turn the block to air to prevent vanilla dupes
+                // The Ghost Break: Replace with air to prevent vanilla dupes
                 level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
 
+                // THE FIX: Return TRUE! Let the event finish so durability and VeinMiner still work!
                 return true;
             }
         }

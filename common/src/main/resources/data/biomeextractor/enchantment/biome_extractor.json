@@ -2,8 +2,8 @@
   "description": {
     "translate": "enchantment.biomeextractor.biome_extractor"
   },
-  "supported_items": "#minecraft:enchantable/mining",
-  "primary_items": "#minecraft:enchantable/mining",
+  "supported_items": "#biomeextractor:enchantable",
+  "primary_items": "#biomeextractor:enchantable",
   "weight": 2,
   "max_level": 1,
   "min_cost": {
