@@ -1,6 +1,12 @@
 package hackradio.biomeextractor;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.client.renderer.ShapeRenderer;
@@ -50,11 +56,9 @@ public class BiomeExtractorCommon {
 
     public static void init(IRegistryHelper registryHelper) {
         STORED_BIOME = registryHelper.registerBiomeComponent("stored_biome");
-
-        // NEW: Assuming your helper has a method for integer components!
         EXTRACTOR_SIZE = registryHelper.registerIntegerComponent("extractor_size");
-
         LOGGER.info("Biome Extractor Common Logic Initialized!");
+        BiomeExtractorConfig.load();
     }
 
     // The toggle switch for our visualizer
@@ -68,23 +72,64 @@ public class BiomeExtractorCommon {
         ItemStack heldItem = player.getMainHandItem();
         if (heldItem.isEmpty()) return true;
 
-        // 26.1 Mapping: Identifier instead of ResourceLocation
         ResourceKey<Enchantment> extractorKey = ResourceKey.create(
                 Registries.ENCHANTMENT,
                 Identifier.fromNamespaceAndPath(MOD_ID, "biome_extractor")
         );
 
-        // 26.1 Mapping: registryAccess().lookupOrThrow() instead of registryOrThrow()
         var registry = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
-        var optionalEnchantment = registry.get(extractorKey); // get() instead of getHolder()
+        var optionalEnchantment = registry.get(extractorKey);
 
         if (optionalEnchantment.isPresent()) {
             int enchantLevel = EnchantmentHelper.getItemEnchantmentLevel(optionalEnchantment.get(), heldItem);
 
             if (enchantLevel > 0) {
-                var biomeHolder = level.getBiome(pos);
 
-                // 26.1 Mapping: .unwrapKey().map(key -> key.location().toString()) might now just be .unwrapKey().get().location().toString() or require the Identifier cast.
+                // --- CONFIG CHECK 1: The Smart Whitelist (Tags + Blocks) ---
+                if (BiomeExtractorConfig.INSTANCE.useWhitelist) {
+                    boolean isAllowed = false;
+                    for (String entry : BiomeExtractorConfig.INSTANCE.allowedBlocks) {
+                        if (entry.startsWith("#")) {
+                            // It is a Tag! (e.g., #minecraft:dirt)
+                            var tagKey = TagKey.create(
+                                    Registries.BLOCK,
+                                    Identifier.parse(entry.substring(1)) // Remove the '#' to parse properly in 26.1 mappings
+                            );
+                            if (state.is(tagKey)) {
+                                isAllowed = true;
+                                break;
+                            }
+                        } else {
+                            // It is a specific block! (e.g., minecraft:gravel)
+                            String blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
+                            if (blockId.equals(entry)) {
+                                isAllowed = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!isAllowed) {
+                        return true; // Not in whitelist! Drop standard vanilla block.
+                    }
+                }
+
+                // --- CONFIG CHECK 2: Proper Tool Check ---
+                if (BiomeExtractorConfig.INSTANCE.requireCorrectTool) {
+                    boolean isRightTool = false;
+
+                    if (state.is(BlockTags.MINEABLE_WITH_PICKAXE) && heldItem.is(ItemTags.PICKAXES)) isRightTool = true;
+                    else if (state.is(BlockTags.MINEABLE_WITH_SHOVEL) && heldItem.is(ItemTags.SHOVELS)) isRightTool = true;
+                    else if (state.is(BlockTags.MINEABLE_WITH_AXE) && heldItem.is(ItemTags.AXES)) isRightTool = true;
+                    else if (state.is(BlockTags.MINEABLE_WITH_HOE) && heldItem.is(ItemTags.HOES)) isRightTool = true;
+
+                    if (!isRightTool) {
+                        return true; // Wrong tool! Drop vanilla block.
+                    }
+                }
+
+                // --- ORIGINAL SUCCESS LOGIC ---
+                var biomeHolder = level.getBiome(pos);
                 String biomeId = biomeHolder.unwrapKey()
                         .map(key -> key.identifier().toString())
                         .orElse("minecraft:plains");
@@ -92,12 +137,12 @@ public class BiomeExtractorCommon {
                 ItemStack droppedBlock = new ItemStack(state.getBlock());
                 droppedBlock.set(STORED_BIOME.get(), biomeId);
 
-                // Pop our custom biome block into the world
                 Block.popResource(level, pos, droppedBlock);
 
-                // THE FIX: The Ghost Break (Silently turn block to Air to bypass vanilla drops)
+                // The Ghost Break: Replace with air to prevent vanilla dupes
                 level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
 
+                // Return TRUE to let the event finish natively for durability and VeinMiner compat!
                 return true;
             }
         }
@@ -167,8 +212,8 @@ public class BiomeExtractorCommon {
                 // 5. Broadcast network packets ONLY for the chunks we actually touched
                 if (level instanceof ServerLevel serverLevel) {
                     for (LevelChunk modifiedChunk : modifiedChunks) {
-                        net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket biomePacket =
-                                net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket.forChunks(java.util.List.of(modifiedChunk));
+                        ClientboundChunksBiomesPacket biomePacket =
+                                ClientboundChunksBiomesPacket.forChunks(java.util.List.of(modifiedChunk));
 
                         serverLevel.getChunkSource().chunkMap.getPlayers(modifiedChunk.getPos(), false).forEach(serverPlayer -> serverPlayer.connection.send(biomePacket));
                     }
@@ -193,7 +238,7 @@ public class BiomeExtractorCommon {
         if (!showBiomeGrid) return;
 
         // Grab the player to check their item mode
-        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
         ItemStack mainHand = mc.player.getMainHandItem();
