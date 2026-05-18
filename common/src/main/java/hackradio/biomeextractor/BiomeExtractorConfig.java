@@ -19,17 +19,29 @@ public class BiomeExtractorConfig {
     // Universal Tags and Blocks
     public List<String> allowedBlocks = new ArrayList<>(List.of(
             "#minecraft:dirt",
-            "#minecraft:sand",
+            "#minecraft:mud",
+            "#minecraft:smelts_to_glass",
             "#minecraft:terracotta",
             "#minecraft:base_stone_overworld",
             "#minecraft:base_stone_nether",
             "#minecraft:leaves",
-            "#minecraft:mud",
             "#minecraft:nylium",
+            "#minecraft:soul_speed_blocks",
+            "#minecraft:moss_blocks",
+            "#minecraft:coral_blocks",
+            "#minecraft:ice",
             "minecraft:grass_block",
             "minecraft:mangrove_roots",
             "minecraft:gravel",
-            "minecraft:moss_block"
+            "minecraft:end_stone",
+            "minecraft:sandstone",
+            "minecraft:red_sandstone",
+            "minecraft:clay",
+            "minecraft:dripstone_block",
+            "minecraft:cobblestone",
+            "minecraft:mossy_cobblestone",
+            "minecraft:cobbled_deepslate",
+            "minecraft:snow_block"
     ));
 
     public static BiomeExtractorConfig INSTANCE = new BiomeExtractorConfig();
