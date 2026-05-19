@@ -21,7 +21,6 @@ public class BiomeExtractorConfig {
     public List<String> allowedBlocks = new ArrayList<>(List.of(
             "#minecraft:dirt",
             "#minecraft:mud",
-            "#minecraft:smelts_to_glass",
             "#minecraft:terracotta",
             "#minecraft:base_stone_overworld",
             "#minecraft:base_stone_nether",
@@ -35,7 +34,9 @@ public class BiomeExtractorConfig {
             "minecraft:mangrove_roots",
             "minecraft:gravel",
             "minecraft:end_stone",
+            "minecraft:sand",
             "minecraft:sandstone",
+            "minecraft:red_sand",
             "minecraft:red_sandstone",
             "minecraft:clay",
             "minecraft:dripstone_block",
