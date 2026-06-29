@@ -1,0 +1,21 @@
+{
+  "description": {
+    "translate": "enchantment.biomeextractor.biome_extractor"
+  },
+  "supported_items": "#biomeextractor:enchantable",
+  "primary_items": "#biomeextractor:enchantable",
+  "weight": 2,
+  "max_level": 1,
+  "min_cost": {
+    "base": 15,
+    "per_level_above_first": 0
+  },
+  "max_cost": {
+    "base": 65,
+    "per_level_above_first": 0
+  },
+  "anvil_cost": 8,
+  "slots": [
+    "mainhand"
+  ]
+}
