@@ -38,10 +38,9 @@ public class BiomeExtractorClientNeoForge {
         }
     }
 
-    // 3. Inject into the 3D Render Pipeline (Using the Sub-Event from your screenshot!)
+    // 3. Inject into the 3D Render Pipeline (26.2)
     @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent.AfterTranslucentBlocks event) {
-
         var buffer = Minecraft.getInstance().renderBuffers().bufferSource().getBuffer(net.minecraft.client.renderer.rendertype.RenderTypes.LINES);
         var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         var matrix = event.getPoseStack();

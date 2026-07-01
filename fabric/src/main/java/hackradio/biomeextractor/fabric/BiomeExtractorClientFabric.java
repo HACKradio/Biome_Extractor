@@ -41,16 +41,10 @@ public class BiomeExtractorClientFabric implements ClientModInitializer {
             }
         });
 
-        // 4. Inject into the 3D Render Pipeline using the new Level API
+        // 4. Inject into the 3D Render Pipeline (26.2)
         LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(context -> {
-
-            // 1. The Paintbrush (Using the bufferSource you found!)
             var buffer = context.bufferSource().getBuffer(RenderTypes.LINES);
-
-            // 2. The Camera (Bypassing the yellow warning to ask Minecraft directly)
             var camera = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera();
-
-            // 3. The Matrix (Using whichever poseStack/matrixStack method worked for you!)
             var matrix = context.poseStack();
 
             BiomeExtractorCommon.renderBiomeGrid(matrix, camera, buffer);
