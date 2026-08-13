@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
@@ -41,10 +42,10 @@ public class BiomeExtractorClientFabric implements ClientModInitializer {
             }
         });
 
-        // 4. Inject into the 3D Render Pipeline (26.2)
+        // 4. Inject into the 3D Render Pipeline
         LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(context -> {
             var buffer = context.bufferSource().getBuffer(RenderTypes.LINES);
-            var camera = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera();
+            var camera = Minecraft.getInstance().gameRenderer.mainCamera();
             var matrix = context.poseStack();
 
             BiomeExtractorCommon.renderBiomeGrid(matrix, camera, buffer);

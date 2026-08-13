@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants.Type;
 import hackradio.biomeextractor.BiomeExtractorCommon;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -38,13 +39,19 @@ public class BiomeExtractorClientNeoForge {
         }
     }
 
-    // 3. Inject into the 3D Render Pipeline (26.2)
+    // 3. Inject into the 3D Render Pipeline
     @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent.AfterTranslucentBlocks event) {
-        var buffer = Minecraft.getInstance().renderBuffers().bufferSource().getBuffer(net.minecraft.client.renderer.rendertype.RenderTypes.LINES);
-        var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        // 1. Fetch the platform's multi-buffer source context natively from the event structure
+        var bufferSource = event.getMultiBufferSource();
+        if (bufferSource == null) return;
+
+        var camera = Minecraft.getInstance().gameRenderer.mainCamera();
         var matrix = event.getPoseStack();
 
-        BiomeExtractorCommon.renderBiomeGrid(matrix, camera, buffer);
+        // 2. Pass the dynamic multi-buffer source provider onward
+        BiomeExtractorCommon.renderBiomeGrid(matrix, camera, bufferSource);
     }
+
+
 }

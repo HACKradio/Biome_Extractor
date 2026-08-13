@@ -199,8 +199,8 @@ public class BiomeExtractorCommon {
         }
     }
 
-    // --- STEP 4: THE MATRIX (Bulletproof 3D Rendering) ---
-    public static void renderBiomeGrid(PoseStack poseStack, Camera camera, VertexConsumer buffer) {
+    // --- STEP 4: THE MATRIX (Bulletproof 3D Rendering - Updated for 26.2) ---
+    public static void renderBiomeGrid(PoseStack poseStack, Camera camera, MultiBufferSource bufferSource) {
         if (!showBiomeGrid) return;
 
         Minecraft mc = Minecraft.getInstance();
@@ -208,16 +208,19 @@ public class BiomeExtractorCommon {
 
         ItemStack mainHand = mc.player.getMainHandItem();
         int mode = mainHand.getOrDefault(EXTRACTOR_SIZE.get(), 0);
-
         int yRadius = (mode > 0) ? 1 : 0;
-        Vec3 camPos = camera.position();
 
+        Vec3 camPos = camera.position();
         int baseBiomeX = (Mth.floor(camPos.x) >> 2) << 2;
         int baseBiomeY = (Mth.floor(camPos.y) >> 2) << 2;
         int baseBiomeZ = (Mth.floor(camPos.z) >> 2) << 2;
 
         // Grab the active transformation matrix
         Matrix4f matrix = poseStack.last().pose();
+
+        // FETCH THE CONSUMER OUTSIDE THE NESTED LOOPS
+        // We bind directly to RenderType.lines() via the core buffer source provider context.
+        VertexConsumer buffer = bufferSource.getBuffer(RenderType.lines());
 
         for (int x = -mode; x <= mode; x++) {
             for (int y = -yRadius; y <= yRadius; y++) {
@@ -240,23 +243,23 @@ public class BiomeExtractorCommon {
 
                     // 3. Let Minecraft's VoxelShape calculate the edges for us!
                     VoxelShape shape = Shapes.create(minX, minY, minZ, maxX, maxY, maxZ);
-
                     shape.forAllEdges((x1, y1, z1, x2, y2, z2) -> {
                         // Calculate standard normals
                         float dx = (float)(x2 - x1);
                         float dy = (float)(y2 - y1);
                         float dz = (float)(z2 - z1);
                         float length = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
-                        dx /= length; dy /= length; dz /= length;
+                        dx /= length;
+                        dy /= length;
+                        dz /= length;
 
                         // 26.2 FIX: Manually apply the PoseStack matrix to the coordinates!
                         Vector3f v1 = new Vector3f((float)x1, (float)y1, (float)z1);
                         Vector3f v2 = new Vector3f((float)x2, (float)y2, (float)z2);
-
                         matrix.transformPosition(v1);
                         matrix.transformPosition(v2);
 
-                        // Push the mathematically transformed vertices directly to the GPU
+                        // Push the mathematically transformed vertices directly to the GPU buffer.
                         buffer.addVertex(v1.x(), v1.y(), v1.z()).setColor(r, g, b, a).setNormal(dx, dy, dz);
                         buffer.addVertex(v2.x(), v2.y(), v2.z()).setColor(r, g, b, a).setNormal(dx, dy, dz);
                     });
@@ -264,6 +267,7 @@ public class BiomeExtractorCommon {
             }
         }
     }
+
 
     // --- STEP 5: THE NETWORK HANDLER (26.2 Updated) ---
     public static void handleCycleSize(ServerPlayer player) {
